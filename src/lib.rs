@@ -63,25 +63,42 @@ pub async fn watch<P: AsRef<Path> + Send + 'static>(path: P) -> notify::Result<(
 }
 
 pub async fn process_event(event: Event) {
-	// Simulate some processing work
-	log::info!("Processing change: {event:?}");
-
-	// Add a small delay to simulate processing
-	tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-
 	// Process the event based on its type
 	match event.kind {
 		notify::EventKind::Create(_) => {
-			log::info!("File created: {:?}", event.paths);
+			for path in &event.paths {
+				log::info!("Created: {}", path.display());
+			}
 		}
-		notify::EventKind::Modify(_) => {
-			log::info!("File modified: {:?}", event.paths);
-		}
+		notify::EventKind::Modify(modify_kind) => match modify_kind {
+			notify::event::ModifyKind::Name(rename_mode) => {
+				// Only log the complete rename relationship when we have both paths
+				if let notify::event::RenameMode::Both = rename_mode {
+					if event.paths.len() >= 2 {
+						let from_path = &event.paths[0];
+						let to_path = &event.paths[1];
+						log::info!("Rename: {} → {}", from_path.display(), to_path.display());
+					}
+				}
+				// For From/To modes, let the Create/Remove events handle the logging
+			}
+			_ => {
+				for path in &event.paths {
+					log::info!("Modified: {}", path.display());
+				}
+			}
+		},
 		notify::EventKind::Remove(_) => {
-			log::info!("File removed: {:?}", event.paths);
+			for path in &event.paths {
+				log::info!("Removed: {}", path.display());
+			}
 		}
-		_ => {
-			log::info!("Other event: {:?}", event.paths);
+		// Filter out Access/Open events (do nothing)
+		notify::EventKind::Access(_) | notify::EventKind::Other => {
+			// Do not report Access/Open events
+		}
+		notify::EventKind::Any => {
+			// Optionally handle other events if needed
 		}
 	}
 
@@ -91,10 +108,7 @@ pub async fn process_event(event: Event) {
 		.iter()
 		.map(|path| {
 			let path = path.clone();
-			task::spawn_blocking(move || {
-				// CPU-intensive work can be done here using rayon
-				process_file_blocking(&path)
-			})
+			task::spawn_blocking(move || process_file_blocking(&path))
 		})
 		.collect();
 
