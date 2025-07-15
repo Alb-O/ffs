@@ -4,7 +4,7 @@ use tempfile::tempdir;
 use tokio::time::Duration;
 
 // Import from the lib module
-use ffs::{process_event, process_file_blocking};
+use ffs::process_file_blocking;
 
 #[tokio::test]
 async fn benchmark_concurrent_processing() {
@@ -19,9 +19,9 @@ async fn benchmark_concurrent_processing() {
 
 	// Create files concurrently
 	for i in 0..num_files {
-		let file_path = path.join(format!("benchmark_{}.txt", i));
+		let file_path = path.join(format!("benchmark_{i}.txt"));
 		handles.push(tokio::task::spawn_blocking(move || {
-			fs::write(&file_path, format!("content {}", i)).unwrap();
+			fs::write(&file_path, format!("content {i}")).unwrap();
 		}));
 	}
 
@@ -31,7 +31,7 @@ async fn benchmark_concurrent_processing() {
 	}
 
 	let creation_time = start.elapsed();
-	println!("Created {} files in {:?}", num_files, creation_time);
+	println!("Created {num_files} files in {creation_time:?}");
 
 	// Test processing performance
 	let start = Instant::now();
@@ -39,7 +39,7 @@ async fn benchmark_concurrent_processing() {
 	// Simulate processing all files
 	let mut process_handles = vec![];
 	for i in 0..num_files {
-		let file_path = path.join(format!("benchmark_{}.txt", i));
+		let file_path = path.join(format!("benchmark_{i}.txt"));
 		process_handles.push(tokio::task::spawn_blocking(move || {
 			process_file_blocking(&file_path);
 		}));
@@ -51,7 +51,7 @@ async fn benchmark_concurrent_processing() {
 	}
 
 	let processing_time = start.elapsed();
-	println!("Processed {} files in {:?}", num_files, processing_time);
+	println!("Processed {num_files} files in {processing_time:?}");
 
 	// Assert reasonable performance
 	assert!(
@@ -100,9 +100,9 @@ async fn test_memory_safety() {
 	let mut handles = vec![];
 
 	for i in 0..50 {
-		let file_path = path.join(format!("memory_test_{}.txt", i));
+		let file_path = path.join(format!("memory_test_{i}.txt"));
 		handles.push(tokio::task::spawn_blocking(move || {
-			fs::write(&file_path, format!("data {}", i)).unwrap();
+			fs::write(&file_path, format!("data {i}")).unwrap();
 			process_file_blocking(&file_path);
 		}));
 	}
@@ -119,15 +119,15 @@ async fn test_async_vs_sync_performance() {
 
 	// Create test files
 	for i in 0..10 {
-		let file_path = path.join(format!("perf_test_{}.txt", i));
-		fs::write(&file_path, format!("content {}", i)).unwrap();
+		let file_path = path.join(format!("perf_test_{i}.txt"));
+		fs::write(&file_path, format!("content {i}")).unwrap();
 	}
 
 	// Test async processing
 	let start = Instant::now();
 	let mut async_handles = vec![];
 	for i in 0..10 {
-		let file_path = path.join(format!("perf_test_{}.txt", i));
+		let file_path = path.join(format!("perf_test_{i}.txt"));
 		async_handles.push(tokio::task::spawn(async move {
 			tokio::time::sleep(Duration::from_millis(10)).await;
 			process_file_blocking(&file_path);
@@ -139,13 +139,13 @@ async fn test_async_vs_sync_performance() {
 	// Test sync processing
 	let start = Instant::now();
 	for i in 0..10 {
-		let file_path = path.join(format!("perf_test_{}.txt", i));
+		let file_path = path.join(format!("perf_test_{i}.txt"));
 		process_file_blocking(&file_path);
 	}
 	let sync_time = start.elapsed();
 
-	println!("Async processing time: {:?}", async_time);
-	println!("Sync processing time: {:?}", sync_time);
+	println!("Async processing time: {async_time:?}");
+	println!("Sync processing time: {sync_time:?}");
 
 	// Async should be faster for I/O bound operations
 	assert!(
